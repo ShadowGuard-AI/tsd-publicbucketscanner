@@ -17,6 +17,9 @@ def is_valid_domain(domain):
     """
     Checks if a domain is valid using regex and DNS resolution.
     """
+    # Validity here includes a live DNS lookup, so the same domain is
+    # valid or invalid depending on the network this runs on, and a
+    # domain that does not resolve yet is refused rather than scanned.
     if not re.match(r"^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9](?:\.[a-zA-Z]{2,})+$", domain):
         return False
     try:
@@ -33,6 +36,12 @@ def check_bucket_access(bucket_url):
     """
     try:
         response = requests.get(bucket_url, timeout=REQUEST_TIMEOUT)
+        # This raise runs before every body check below, and storage
+        # services report denial and absence as 4xx statuses. So the
+        # AccessDenied and NoSuchBucket text tests further down are
+        # dead in practice: an error body only reaches them on a 200
+        # response that carries one, which is not how these services
+        # answer.
         response.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
 
         # Check for common S3 listing vulnerabilities
@@ -41,6 +50,9 @@ def check_bucket_access(bucket_url):
             return True
 
         # Check for common GCS listing vulnerabilities -  This is a simplified check. Real-world GCS checks might need API calls
+        # These two words appear in plenty of ordinary XML and JSON, so
+        # any successful response containing both reads as a public
+        # bucket. There is no structure check behind the words.
         if "Contents" in response.text and "Name" in response.text:  #Basic heuristic
             logging.info(f"Bucket {bucket_url} appears to be publicly readable (GCS).")
             return True
