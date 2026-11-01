@@ -5,10 +5,13 @@ import socket
 import re
 import sys
 from bs4 import BeautifulSoup
-import whois
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Timeout in seconds applied to every bucket request, so one hung
+# endpoint cannot hang the scan.
+REQUEST_TIMEOUT = 10
 
 def is_valid_domain(domain):
     """
@@ -29,7 +32,7 @@ def check_bucket_access(bucket_url):
     Returns True if accessible, False otherwise.
     """
     try:
-        response = requests.get(bucket_url)
+        response = requests.get(bucket_url, timeout=REQUEST_TIMEOUT)
         response.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
 
         # Check for common S3 listing vulnerabilities
